@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sparkles, Download, LayoutGrid, Loader2, MessageSquare, Smartphone, Tablet, Monitor, Image as ImageIcon, Upload, Globe, Moon, Sun, Undo, Redo, History, BarChart2, Plus, Maximize, Minimize, Key } from 'lucide-react';
-import { generateWebsiteCode, generateImage } from './services/geminiService';
+import { generateWebsiteCodeCollaborative, generateImage } from './services/geminiService';
 
 declare global {
   interface Window {
@@ -31,6 +31,11 @@ export default function App() {
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [hasApiKey, setHasApiKey] = useState(true);
+  const [showHostModal, setShowHostModal] = useState(false);
+  const [longThinking, setLongThinking] = useState(false);
+  const [persona, setPersona] = useState('Professional');
+  const [codeStyle, setCodeStyle] = useState('Clean');
+  const [images, setImages] = useState<string[]>([]);
 
   useEffect(() => {
     const checkApiKey = async () => {
@@ -60,10 +65,13 @@ export default function App() {
   const handleGenerate = async (isRefinement = false) => {
     setLoading(true);
     try {
-      const code = await generateWebsiteCode(
+      const code = await generateWebsiteCodeCollaborative(
         prompt,
         keywords,
         audience,
+        longThinking,
+        persona,
+        codeStyle,
         isRefinement ? feedback : undefined,
         isRefinement ? generatedWebsite || undefined : undefined
       );
@@ -108,6 +116,42 @@ export default function App() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleExportProject = () => {
+    const projectData = {
+      prompt,
+      keywords,
+      audience,
+      persona,
+      codeStyle,
+      generatedWebsite,
+      images,
+      timestamp: new Date().toISOString(),
+    };
+    const blob = new Blob([JSON.stringify(projectData)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'project.awa';
+    a.click();
+  };
+
+  const handleImportProject = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const data = JSON.parse(e.target?.result as string);
+      setPrompt(data.prompt);
+      setKeywords(data.keywords);
+      setAudience(data.audience);
+      setPersona(data.persona);
+      setCodeStyle(data.codeStyle);
+      setGeneratedWebsite(data.generatedWebsite);
+      setImages(data.images);
+    };
+    reader.readAsText(file);
   };
 
   const handleDownload = (format: 'html' | 'json') => {
@@ -180,9 +224,12 @@ export default function App() {
               }
             }} />
           </label>
-          <button onClick={() => handleDownload('html')} disabled={!generatedWebsite} className="px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-50">Export HTML</button>
-          <button onClick={() => handleDownload('json')} disabled={!generatedWebsite} className="px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-50">Export Project</button>
-          <button className="px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700"><Globe className="w-4 h-4 inline mr-2" />Host</button>
+          <button onClick={handleExportProject} disabled={!generatedWebsite} className="px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-50">Export Project (.awa)</button>
+          <label className="px-4 py-2 bg-zinc-600 text-white rounded-xl hover:bg-zinc-700 cursor-pointer">
+            Import Project
+            <input type="file" accept=".awa" onChange={handleImportProject} className="hidden" />
+          </label>
+          <button onClick={() => setShowHostModal(true)} disabled={!generatedWebsite} className="px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-50"><Globe className="w-4 h-4 inline mr-2" />Host</button>
         </div>
       </header>
 
@@ -207,21 +254,49 @@ export default function App() {
           </div>
 
           <div className="pt-4 border-t border-zinc-200 space-y-4">
-            <h3 className="text-md font-semibold">Component Library</h3>
-            <div className="grid grid-cols-2 gap-2">
-              <button onClick={() => addComponent('<section class="p-10"><h2>New Section</h2></section>')} className="p-2 bg-zinc-100 rounded-lg text-sm flex items-center gap-1"><Plus className="w-4 h-4" /> Section</button>
-              <button onClick={() => addComponent('<button class="px-4 py-2 bg-blue-500 text-white rounded">Button</button>')} className="p-2 bg-zinc-100 rounded-lg text-sm flex items-center gap-1"><Plus className="w-4 h-4" /> Button</button>
-            </div>
+            <h3 className="text-md font-semibold">AI Generation Config</h3>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={longThinking} onChange={(e) => setLongThinking(e.target.checked)} />
+              Long Thinking (3x slower, better results)
+            </label>
+            <select value={persona} onChange={(e) => setPersona(e.target.value)} className="w-full p-2 border border-zinc-300 rounded-lg">
+              <option>Professional</option>
+              <option>Playful</option>
+              <option>Minimalist</option>
+            </select>
+            <select value={codeStyle} onChange={(e) => setCodeStyle(e.target.value)} className="w-full p-2 border border-zinc-300 rounded-lg">
+              <option>Clean</option>
+              <option>Commented</option>
+              <option>Compact</option>
+            </select>
           </div>
 
           <div className="pt-4 border-t border-zinc-200 space-y-4">
-            <h3 className="text-md font-semibold">AI Image Generator</h3>
-            <input type="text" value={imagePrompt} onChange={(e) => setImagePrompt(e.target.value)} className="w-full p-4 border border-zinc-300 rounded-xl bg-zinc-50 dark:bg-zinc-700" placeholder="Image prompt..." />
-            <button onClick={handleGenerateImage} disabled={loading || !hasApiKey} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-100 text-emerald-900 rounded-xl hover:bg-emerald-200 disabled:opacity-50">
-              <ImageIcon className="w-4 h-4" />
-              Generate Image
+            <h3 className="text-md font-semibold">AI Model Tools</h3>
+            <button onClick={async () => {
+              const explanation = await generateWebsiteCodeCollaborative("Explain this code: " + generatedWebsite, "", "", false, "Professional", "Clean");
+              alert(explanation);
+            }} disabled={!generatedWebsite} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-zinc-100 text-zinc-900 rounded-xl hover:bg-zinc-200 disabled:opacity-50">
+              <MessageSquare className="w-4 h-4" />
+              Explain My Code
             </button>
-            {generatedImage && <img src={generatedImage} alt="Generated" className="w-full rounded-xl" />}
+          </div>
+
+          <div className="pt-4 border-t border-zinc-200 space-y-4">
+            <h3 className="text-md font-semibold">Image Manager</h3>
+            <input type="file" accept="image/*" onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => setImages([...images, e.target?.result as string]);
+                reader.readAsDataURL(file);
+              }
+            }} />
+            <div className="grid grid-cols-3 gap-2">
+              {images.map((img, i) => (
+                <img key={i} src={img} onClick={() => addComponent(`<img src="${img}" />`)} className="w-full h-16 object-cover rounded-lg cursor-pointer" />
+              ))}
+            </div>
           </div>
         </div>
 
@@ -256,6 +331,25 @@ export default function App() {
           </div>
         </div>
       </main>
+      {showHostModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-zinc-800 p-6 rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold mb-4">Advanced Hosting Configuration</h2>
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="p-4 border rounded-xl">Custom Domain Setup</div>
+              <div className="p-4 border rounded-xl">SSL Certificate Management</div>
+              <div className="p-4 border rounded-xl">Performance Analytics</div>
+              <div className="p-4 border rounded-xl">Deployment History</div>
+              <div className="p-4 border rounded-xl">Environment Variables</div>
+              <div className="p-4 border rounded-xl">CDN Caching Config</div>
+            </div>
+            <p className="mb-4 text-zinc-600 dark:text-zinc-300">
+              These advanced features are placeholders. Configure them directly on your hosting provider (e.g., Netlify/Vercel).
+            </p>
+            <button onClick={() => setShowHostModal(false)} className="w-full px-4 py-2 bg-zinc-900 text-white rounded-xl hover:bg-zinc-800">Close</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
