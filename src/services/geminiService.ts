@@ -5,6 +5,7 @@ export async function generateWebsiteCodeCollaborative(
   keywords: string,
   audience: string,
   longThinking: boolean,
+  fastMode: boolean,
   persona: string,
   codeStyle: string,
   feedback?: string,
@@ -26,9 +27,23 @@ export async function generateWebsiteCodeCollaborative(
     ? `Modify the existing website based on this feedback: ${feedback}. Original prompt: ${prompt}. Keywords: ${keywords}. Audience: ${audience}. Existing code: ${existingCode}`
     : `Generate a website for: ${prompt}. Keywords: ${keywords}. Audience: ${audience}.`;
 
-  const thinkingConfig = longThinking ? { thinkingLevel: ThinkingLevel.HIGH } : undefined;
+  const thinkingConfig = fastMode 
+    ? { thinkingLevel: ThinkingLevel.LOW } 
+    : (longThinking ? { thinkingLevel: ThinkingLevel.HIGH } : undefined);
 
-  // Call both models
+  const modelName = fastMode ? "gemini-3-flash-preview" : "gemini-3.1-flash-lite-preview";
+
+  // If fast mode, use single model for speed
+  if (fastMode) {
+    const response = await ai.models.generateContent({
+      model: modelName,
+      contents: userPrompt,
+      config: { systemInstruction, thinkingConfig },
+    });
+    return response.text || "";
+  }
+
+  // Otherwise, collaborative generation
   const [res1, res2] = await Promise.all([
     ai.models.generateContent({
       model: "gemini-3.1-flash-lite-preview",
@@ -42,7 +57,6 @@ export async function generateWebsiteCodeCollaborative(
     }),
   ]);
 
-  // Combine results (simple combination for now)
   return res1.text || res2.text || "";
 }
 
