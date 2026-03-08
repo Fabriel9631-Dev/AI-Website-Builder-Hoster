@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react';
-import { Sparkles, Download, LayoutGrid, Loader2, MessageSquare, Smartphone, Tablet, Monitor, Image as ImageIcon, Upload, Globe, Moon, Sun, Undo, Redo, History, BarChart2, Plus } from 'lucide-react';
+import { Sparkles, Download, LayoutGrid, Loader2, MessageSquare, Smartphone, Tablet, Monitor, Image as ImageIcon, Upload, Globe, Moon, Sun, Undo, Redo, History, BarChart2, Plus, Maximize, Minimize } from 'lucide-react';
 import { generateWebsiteCode, generateImage } from './services/geminiService';
 
 export default function App() {
@@ -20,6 +20,7 @@ export default function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
   const addToHistory = (code: string) => {
     const newHistory = history.slice(0, historyIndex + 1);
@@ -110,6 +111,15 @@ export default function App() {
 
   return (
     <div className={`min-h-screen ${darkMode ? 'bg-zinc-900 text-white' : 'bg-zinc-50 text-zinc-900'} p-6`}>
+      {isFullScreen && (
+        <div className="fixed inset-0 z-50 bg-white dark:bg-zinc-900 p-4 overflow-auto">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold">Full Screen Preview</h2>
+            <button onClick={() => setIsFullScreen(false)} className="p-2 rounded-lg bg-zinc-200 dark:bg-zinc-700"><Minimize className="w-5 h-5" /></button>
+          </div>
+          <div className={darkMode ? 'dark' : ''} dangerouslySetInnerHTML={{ __html: generatedWebsite || '' }} />
+        </div>
+      )}
       <header className="flex items-center justify-between pb-6 border-b border-zinc-200">
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <LayoutGrid className="w-8 h-8 text-indigo-600" />
@@ -187,6 +197,7 @@ export default function App() {
             <div className="flex gap-2">
               <button onClick={handleUndo} className="p-2 rounded-lg bg-zinc-100"><Undo className="w-5 h-5" /></button>
               <button onClick={handleRedo} className="p-2 rounded-lg bg-zinc-100"><Redo className="w-5 h-5" /></button>
+              <button onClick={() => setIsFullScreen(true)} className="p-2 rounded-lg bg-zinc-100"><Maximize className="w-5 h-5" /></button>
               <div className="flex gap-2 border-l pl-2">
                 <button onClick={() => setPreviewSize('desktop')} className={`p-2 rounded-lg ${previewSize === 'desktop' ? 'bg-zinc-200' : ''}`}><Monitor className="w-5 h-5" /></button>
                 <button onClick={() => setPreviewSize('tablet')} className={`p-2 rounded-lg ${previewSize === 'tablet' ? 'bg-zinc-200' : ''}`}><Tablet className="w-5 h-5" /></button>
