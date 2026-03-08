@@ -3,9 +3,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState } from 'react';
-import { Sparkles, Download, LayoutGrid, Loader2, MessageSquare, Smartphone, Tablet, Monitor, Image as ImageIcon, Upload, Globe, Moon, Sun, Undo, Redo, History, BarChart2, Plus, Maximize, Minimize } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Sparkles, Download, LayoutGrid, Loader2, MessageSquare, Smartphone, Tablet, Monitor, Image as ImageIcon, Upload, Globe, Moon, Sun, Undo, Redo, History, BarChart2, Plus, Maximize, Minimize, Key } from 'lucide-react';
 import { generateWebsiteCode, generateImage } from './services/geminiService';
+
+declare global {
+  interface Window {
+    aistudio: {
+      hasSelectedApiKey: () => Promise<boolean>;
+      openSelectKey: () => Promise<void>;
+    };
+  }
+}
 
 export default function App() {
   const [prompt, setPrompt] = useState('');
@@ -21,6 +30,25 @@ export default function App() {
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [hasApiKey, setHasApiKey] = useState(true);
+
+  useEffect(() => {
+    const checkApiKey = async () => {
+      if (window.aistudio && await window.aistudio.hasSelectedApiKey()) {
+        setHasApiKey(true);
+      } else {
+        setHasApiKey(false);
+      }
+    };
+    checkApiKey();
+  }, []);
+
+  const handleSelectApiKey = async () => {
+    if (window.aistudio) {
+      await window.aistudio.openSelectKey();
+      setHasApiKey(true);
+    }
+  };
 
   const addToHistory = (code: string) => {
     const newHistory = history.slice(0, historyIndex + 1);
@@ -126,6 +154,12 @@ export default function App() {
           AI Website Architect
         </h1>
         <div className="flex gap-2">
+          {!hasApiKey && (
+            <button onClick={handleSelectApiKey} className="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 flex items-center gap-2">
+              <Key className="w-4 h-4" />
+              Select API Key
+            </button>
+          )}
           <button onClick={() => setDarkMode(!darkMode)} className="p-2 rounded-xl bg-zinc-200 dark:bg-zinc-700">{darkMode ? <Sun /> : <Moon />}</button>
           <label className="px-4 py-2 bg-zinc-600 text-white rounded-xl hover:bg-zinc-700 cursor-pointer">
             <Upload className="w-4 h-4 inline mr-2" />
@@ -158,7 +192,7 @@ export default function App() {
           <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} className="w-full h-24 p-4 border border-zinc-300 rounded-xl bg-zinc-50 dark:bg-zinc-700" placeholder="Describe your website..." />
           <input type="text" value={keywords} onChange={(e) => setKeywords(e.target.value)} className="w-full p-4 border border-zinc-300 rounded-xl bg-zinc-50 dark:bg-zinc-700" placeholder="Keywords..." />
           <input type="text" value={audience} onChange={(e) => setAudience(e.target.value)} className="w-full p-4 border border-zinc-300 rounded-xl bg-zinc-50 dark:bg-zinc-700" placeholder="Audience..." />
-          <button onClick={() => handleGenerate(false)} disabled={loading} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-zinc-900 text-white rounded-xl hover:bg-zinc-800 disabled:opacity-50">
+          <button onClick={() => handleGenerate(false)} disabled={loading || !hasApiKey} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-zinc-900 text-white rounded-xl hover:bg-zinc-800 disabled:opacity-50">
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
             Generate Website
           </button>
@@ -166,7 +200,7 @@ export default function App() {
           <div className="pt-4 border-t border-zinc-200 space-y-4">
             <h3 className="text-md font-semibold">Refine Website</h3>
             <textarea value={feedback} onChange={(e) => setFeedback(e.target.value)} className="w-full h-24 p-4 border border-zinc-300 rounded-xl bg-zinc-50 dark:bg-zinc-700" placeholder="e.g., Make header larger..." />
-            <button onClick={() => handleGenerate(true)} disabled={loading} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-100 text-indigo-900 rounded-xl hover:bg-indigo-200 disabled:opacity-50">
+            <button onClick={() => handleGenerate(true)} disabled={loading || !hasApiKey} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-100 text-indigo-900 rounded-xl hover:bg-indigo-200 disabled:opacity-50">
               <MessageSquare className="w-4 h-4" />
               Refine Website
             </button>
@@ -183,7 +217,7 @@ export default function App() {
           <div className="pt-4 border-t border-zinc-200 space-y-4">
             <h3 className="text-md font-semibold">AI Image Generator</h3>
             <input type="text" value={imagePrompt} onChange={(e) => setImagePrompt(e.target.value)} className="w-full p-4 border border-zinc-300 rounded-xl bg-zinc-50 dark:bg-zinc-700" placeholder="Image prompt..." />
-            <button onClick={handleGenerateImage} disabled={loading} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-100 text-emerald-900 rounded-xl hover:bg-emerald-200 disabled:opacity-50">
+            <button onClick={handleGenerateImage} disabled={loading || !hasApiKey} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-100 text-emerald-900 rounded-xl hover:bg-emerald-200 disabled:opacity-50">
               <ImageIcon className="w-4 h-4" />
               Generate Image
             </button>

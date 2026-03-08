@@ -1,7 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-
 export async function generateWebsiteCode(
   prompt: string,
   keywords: string,
@@ -9,6 +7,7 @@ export async function generateWebsiteCode(
   feedback?: string,
   existingCode?: string
 ): Promise<string> {
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
   const systemInstruction = `You are an expert web developer. Generate a single-page website layout using Tailwind CSS classes.
   Include meta tags for SEO using the provided keywords and audience.
   Include placeholder content for 'About Us', 'Services', and 'Contact' sections.
@@ -31,6 +30,7 @@ export async function generateWebsiteCode(
 }
 
 export async function generateImage(prompt: string): Promise<string> {
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
   const response = await ai.models.generateContent({
     model: 'gemini-3.1-flash-image-preview',
     contents: {
